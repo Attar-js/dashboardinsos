@@ -7,12 +7,22 @@ use App\Models\PeerReview;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\DashboardHelper;
+use OpenApi\Attributes as OA;
 
 class PeerReviewController extends Controller
 {
     /**
      * Menampilkan halaman peer review
      */
+    #[OA\Get(
+        path: '/api/peer-review/list',
+        tags: ['Peer Review'],
+        summary: 'Daftar semua peer review',
+        description: 'Mengambil seluruh data peer review beserta status verifikasinya.',
+        responses: [
+            new OA\Response(response: 200, description: 'Daftar peer review berhasil diambil'),
+        ]
+    )]
     public function index()
     {
         $peerReviews = PeerReview::orderBy('created_at', 'desc')->get();
@@ -33,7 +43,7 @@ class PeerReviewController extends Controller
         });
         
         // Check if request wants JSON (API call)
-        if (request()->expectsJson()) {
+        if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json($transformedData);
         }
         
@@ -122,10 +132,30 @@ class PeerReviewController extends Controller
     /**
      * Menampilkan detail peer review
      */
+    #[OA\Get(
+        path: '/api/peer-review/{id}',
+        tags: ['Peer Review'],
+        summary: 'Detail peer review',
+        description: 'Mengambil detail satu peer review berdasarkan ID.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID peer review', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Detail peer review berhasil diambil'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+        ]
+    )]
     public function show($id)
     {
-        $peerReview = PeerReview::findOrFail($id);
-        return response()->json($peerReview);
+        try {
+            $peerReview = PeerReview::findOrFail($id);
+            return response()->json($peerReview);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan'
+            ], 404);
+        }
     }
 
     /**
@@ -188,12 +218,48 @@ class PeerReviewController extends Controller
     /**
      * Verifikasi peer review
      */
+    #[OA\Put(
+        path: '/api/peer-review/{id}/status',
+        tags: ['Peer Review'],
+        summary: 'Verifikasi / ubah status peer review',
+        description: 'Mengubah status verifikasi peer review (pending, approved, rejected) beserta catatan opsional.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID peer review', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['status'],
+                properties: [
+                    new OA\Property(property: 'status', type: 'string', enum: ['pending', 'approved', 'rejected'], example: 'approved'),
+                    new OA\Property(property: 'catatan', type: 'string', maxLength: 1000, nullable: true, example: 'Sudah sesuai'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Status peer review berhasil diperbarui'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
     public function verifikasi(Request $request, $id)
     {
-        $request->validate([
+        $isApi = $request->is('api/*') || $request->expectsJson();
+
+        $validator = Validator::make($request->all(), [
             'status' => 'required|in:pending,approved,rejected',
             'catatan' => 'nullable|string|max:1000'
         ]);
+
+        if ($validator->fails()) {
+            if ($isApi) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
 
         try {
             $peerReview = PeerReview::findOrFail($id);
@@ -201,9 +267,22 @@ class PeerReviewController extends Controller
             $peerReview->catatan = $request->catatan;
             $peerReview->save();
 
+            if ($isApi) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status peer review berhasil diupdate!',
+                    'data' => $peerReview
+                ]);
+            }
             return redirect()->route('special-pages.peer-review')->with('success', 'Status peer review berhasil diupdate!');
         } catch (\Exception $e) {
             \Log::error('Error updating peer review status: ' . $e->getMessage());
+            if ($isApi) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat mengupdate status: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->back()->with('error', 'Terjadi kesalahan saat mengupdate status: ' . $e->getMessage());
         }
     }
@@ -233,6 +312,31 @@ class PeerReviewController extends Controller
     /**
      * API untuk menerima data dari project-akhir
      */
+    #[OA\Post(
+        path: '/api/peer-review/store-from-external',
+        tags: ['Peer Review'],
+        summary: 'Menerima peer review dari project-akhir',
+        description: 'Menyimpan peer review beserta file (dikirim sebagai string base64). Endpoint ini juga tersedia sebagai alias di /api/peer-review/store.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['judul_kegiatan', 'user_nim', 'file_content', 'file_name', 'file_mime_type', 'file_size'],
+                properties: [
+                    new OA\Property(property: 'judul_kegiatan', type: 'string', maxLength: 255, example: 'KKN Tematik Desa Sukamaju'),
+                    new OA\Property(property: 'user_nim', type: 'string', maxLength: 20, example: '2010001'),
+                    new OA\Property(property: 'file_content', type: 'string', format: 'byte', description: 'Isi file PDF dalam base64'),
+                    new OA\Property(property: 'file_name', type: 'string', maxLength: 255, example: 'peer-review.pdf'),
+                    new OA\Property(property: 'file_mime_type', type: 'string', example: 'application/pdf'),
+                    new OA\Property(property: 'file_size', type: 'integer', example: 204800),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Peer review berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function storeFromExternal(Request $request)
     {
         try {
@@ -266,6 +370,12 @@ class PeerReviewController extends Controller
                 'message' => 'Peer Review berhasil disimpan'
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             \Log::error('Error storing peer review from external: ' . $e->getMessage());
             return response()->json([

@@ -8,12 +8,44 @@ use App\Models\KknAnggota;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use OpenApi\Attributes as OA;
 
 class KknApiController extends Controller
 {
     /**
      * Menyimpan data pendaftaran dari project-akhir
      */
+    #[OA\Post(
+        path: '/api/kkn/store-from-external',
+        tags: ['KKN'],
+        summary: 'Menerima pendaftaran KKN dari project-akhir',
+        description: 'Menyimpan data pendaftaran KKN beserta anggota kelompok dan file proposal (PDF). Dikirim oleh aplikasi project-akhir saat mahasiswa mendaftar.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['judul_kegiatan', 'mitra', 'lokasi_mitra', 'nama[]', 'nim[]', 'prodi[]', 'peran[]', 'file', 'user_nim'],
+                    properties: [
+                        new OA\Property(property: 'judul_kegiatan', type: 'string', maxLength: 255, example: 'KKN Tematik Desa Sukamaju'),
+                        new OA\Property(property: 'mitra', type: 'string', maxLength: 100, example: 'Pemerintah Desa Sukamaju'),
+                        new OA\Property(property: 'lokasi_mitra', type: 'string', maxLength: 255, example: 'Desa Sukamaju, Kab. Bandung'),
+                        new OA\Property(property: 'nama[]', type: 'array', items: new OA\Items(type: 'string'), example: ['Budi Santoso', 'Siti Aminah']),
+                        new OA\Property(property: 'nim[]', type: 'array', items: new OA\Items(type: 'string'), example: ['2010001', '2010002']),
+                        new OA\Property(property: 'prodi[]', type: 'array', items: new OA\Items(type: 'string'), example: ['Teknik Informatika', 'Sistem Informasi']),
+                        new OA\Property(property: 'peran[]', type: 'array', items: new OA\Items(type: 'string', enum: ['Ketua', 'Anggota']), example: ['Ketua', 'Anggota']),
+                        new OA\Property(property: 'file', type: 'string', format: 'binary', description: 'File proposal PDF (maks 10MB)'),
+                        new OA\Property(property: 'user_nim', type: 'string', maxLength: 20, example: '2010001'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Pendaftaran berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function storeFromExternal(Request $request)
     {
         // Debug logging
@@ -149,6 +181,16 @@ class KknApiController extends Controller
     /**
      * Mengambil semua data pendaftar
      */
+    #[OA\Get(
+        path: '/api/kkn/pendaftar',
+        tags: ['KKN'],
+        summary: 'Daftar semua pendaftar KKN',
+        description: 'Mengambil seluruh data pendaftar KKN beserta ringkasan anggota dan status verifikasi.',
+        responses: [
+            new OA\Response(response: 200, description: 'Daftar pendaftar berhasil diambil'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function index()
     {
         try {
@@ -195,6 +237,19 @@ class KknApiController extends Controller
     /**
      * Mengambil data pendaftar berdasarkan NIM user
      */
+    #[OA\Get(
+        path: '/api/kkn/pendaftar/user/{userNim}',
+        tags: ['KKN'],
+        summary: 'Daftar pendaftar berdasarkan NIM user',
+        description: 'Mengambil data pendaftaran KKN milik user tertentu berdasarkan NIM.',
+        parameters: [
+            new OA\Parameter(name: 'userNim', in: 'path', required: true, description: 'NIM user pendaftar', schema: new OA\Schema(type: 'string'), example: '2010001'),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Data pendaftar berhasil diambil'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function getByUserNim($userNim)
     {
         try {
@@ -242,6 +297,19 @@ class KknApiController extends Controller
     /**
      * Mengambil detail pendaftar
      */
+    #[OA\Get(
+        path: '/api/kkn/pendaftar/{id}',
+        tags: ['KKN'],
+        summary: 'Detail pendaftar KKN',
+        description: 'Mengambil detail satu pendaftar KKN beserta anggotanya berdasarkan ID.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID pendaftar', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Detail pendaftar berhasil diambil'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+        ]
+    )]
     public function show($id)
     {
         try {

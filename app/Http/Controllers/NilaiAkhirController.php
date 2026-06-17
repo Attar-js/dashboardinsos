@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use OpenApi\Attributes as OA;
 
 class NilaiAkhirController extends Controller
 {
@@ -45,6 +46,16 @@ class NilaiAkhirController extends Controller
     /**
      * API endpoint for real-time dashboard data
      */
+    #[OA\Get(
+        path: '/nilai-akhir/api/real-time-data',
+        tags: ['Nilai'],
+        summary: 'Data nilai real-time untuk dashboard',
+        description: 'Mengambil data nilai terbaru untuk pembaruan dashboard secara real-time (AJAX). Membutuhkan sesi login (auth).',
+        responses: [
+            new OA\Response(response: 200, description: 'Data real-time berhasil diambil'),
+            new OA\Response(response: 401, description: 'Belum login'),
+        ]
+    )]
     public function getRealTimeData()
     {
         try {
@@ -80,6 +91,35 @@ class NilaiAkhirController extends Controller
     /**
      * API endpoint untuk menerima input nilai dari project-akhir
      */
+    #[OA\Post(
+        path: '/nilai-akhir/api/receive-nilai',
+        tags: ['Nilai'],
+        summary: 'Menerima input nilai dari project-akhir',
+        description: 'Menyimpan atau memperbarui nilai mahasiswa (per dosen) ke database project_akhir. Dipanggil oleh aplikasi project-akhir saat dosen menginput nilai. Endpoint ini tanpa autentikasi.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['mahasiswa_nim', 'dosen_id', 'nilai_akhir'],
+                properties: [
+                    new OA\Property(property: 'mahasiswa_nim', type: 'string', example: '2010001'),
+                    new OA\Property(property: 'dosen_id', type: 'integer', example: 3),
+                    new OA\Property(property: 'nilai_akhir', type: 'number', format: 'float', minimum: 0, maximum: 100, example: 85.5),
+                    new OA\Property(property: 'proposal_kegiatan', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 80),
+                    new OA\Property(property: 'asistensi', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 90),
+                    new OA\Property(property: 'peer_review', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 88),
+                    new OA\Property(property: 'laporan_akhir', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 85),
+                    new OA\Property(property: 'presentasi_akhir', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 87),
+                    new OA\Property(property: 'pembimbing_lapangan', type: 'number', format: 'float', minimum: 0, maximum: 100, nullable: true, example: 90),
+                    new OA\Property(property: 'tanggal_penilaian', type: 'string', format: 'date', nullable: true, example: '2026-06-15'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Nilai berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function receiveNilaiInput(Request $request)
     {
         try {
@@ -151,11 +191,8 @@ class NilaiAkhirController extends Controller
                     'nilai_akhir' => $request->nilai_akhir
                 ]);
             }
-
-            // Clear cache to ensure fresh data
             Cache::forget('nilai_akhir_dashboard_data');
 
-            // Log successful operation
             \Log::info('Successfully processed nilai input', [
                 'mahasiswa_nim' => $request->mahasiswa_nim,
                 'nilai_akhir' => $request->nilai_akhir,
@@ -172,6 +209,12 @@ class NilaiAkhirController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             \Log::error('Error in NilaiAkhirController::receiveNilaiInput: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
@@ -184,18 +227,24 @@ class NilaiAkhirController extends Controller
         }
     }
 
-    /**
-     * API endpoint untuk mendapatkan data real-time dengan notifikasi
-     */
+    #[OA\Get(
+        path: '/nilai-akhir/api/real-time-with-notification',
+        tags: ['Nilai'],
+        summary: 'Data nilai real-time + notifikasi',
+        description: 'Mengambil data nilai terbaru beserta informasi notifikasi perubahan untuk dashboard (AJAX). Membutuhkan sesi login (auth).',
+        responses: [
+            new OA\Response(response: 200, description: 'Data real-time dengan notifikasi berhasil diambil'),
+            new OA\Response(response: 401, description: 'Belum login'),
+        ]
+    )]
     public function getRealTimeDataWithNotification()
     {
         try {
-            // Clear cache to get fresh data
+
             Cache::forget('nilai_akhir_dashboard_data');
             
             $groups = $this->getGroupsFromMahasiswaBimbingan();
             
-            // Get latest penilaian for notification
             $latestPenilaian = DB::connection('project_akhir')
                 ->table('penilaian')
                 ->where('dosen_id', 20)
@@ -224,26 +273,20 @@ class NilaiAkhirController extends Controller
         }
     }
 
-    /**
-     * Get groups data from mahasiswa bimbingan
-     */
+
     public function getGroupsFromMahasiswaBimbingan()
     {
         try {
             $groups = [];
-            
-            // Get group assignments from hope-ui (use default connection)
+
             $groupAssignments = DB::table('group_assignments')->get();
             
             \Log::info('Found group assignments', ['count' => $groupAssignments->count()]);
 
             foreach ($groupAssignments as $assignment) {
-                // Get anggota for this group using kkn_pendaftar_id (use default connection)
                 $anggota = DB::table('kkn_anggota')
                     ->where('kkn_pendaftar_id', $assignment->group_id)
                     ->get();
-
-                // Get NIMs of anggota in this group
                 $nimAnggota = $anggota->pluck('nim')->toArray();
                 
                 \Log::info('Processing group', [
@@ -253,7 +296,6 @@ class NilaiAkhirController extends Controller
                     'nim_anggota' => $nimAnggota
                 ]);
 
-                // Get penilaian from project-akhir database ONLY for anggota in this group
                 $penilaian = DB::connection('project_akhir')->table('penilaian')
                     ->where('dosen_id', $assignment->dosen_id)
                     ->whereIn('mahasiswa_nim', $nimAnggota)
@@ -837,16 +879,120 @@ class NilaiAkhirController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * API publik daftar nilai akhir seluruh mahasiswa.
      */
+    #[OA\Get(
+        path: '/api/nilai-akhir',
+        tags: ['Nilai'],
+        summary: 'Tarik data nilai akhir semua mahasiswa (untuk mitra)',
+        description: 'Mengembalikan daftar nilai akhir seluruh mahasiswa dalam format JSON. Ditujukan untuk ditarik oleh sistem mitra. Wajib menyertakan header X-API-KEY.',
+        security: [['ApiKeyAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'q', in: 'query', required: false, description: 'Kata kunci pencarian (nama/NIM/kelompok)', schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Data berhasil diambil'),
+            new OA\Response(response: 401, description: 'API key tidak valid'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
+    public function apiIndex(Request $request)
+    {
+        try {
+            $rows = $this->buildMahasiswaRows(trim((string) $request->get('q', '')));
+            $data = array_map(fn ($row) => $this->transformForApi($row), $rows);
+
+            return response()->json([
+                'success' => true,
+                'total' => count($data),
+                'data' => $data,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in NilaiAkhirController::apiIndex: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan server',
+            ], 500);
+        }
+    }
+
+    /**
+     * API publik : nilai akhir satu mahasiswa berdasarkan NIM.
+     */
+    #[OA\Get(
+        path: '/api/nilai-akhir/{nim}',
+        tags: ['Nilai'],
+        summary: 'Tarik data nilai akhir satu mahasiswa (untuk mitra)',
+        description: 'Mengembalikan nilai akhir satu mahasiswa berdasarkan NIM. Wajib menyertakan header X-API-KEY.',
+        security: [['ApiKeyAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'nim', in: 'path', required: true, description: 'NIM mahasiswa', schema: new OA\Schema(type: 'string'), example: '10221051'),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Data berhasil diambil'),
+            new OA\Response(response: 401, description: 'API key tidak valid'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
+    public function apiShow(string $nim)
+    {
+        try {
+            $rows = $this->buildMahasiswaRows($nim);
+            $match = collect($rows)->firstWhere('nim', $nim);
+
+            if (!$match) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data nilai untuk NIM tersebut tidak ditemukan',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->transformForApi($match),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in NilaiAkhirController::apiShow: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan server',
+            ], 500);
+        }
+    }
+
+    private function transformForApi(array $row): array
+    {
+        $p = $row['penilaian'] ?? [];
+
+        return [
+            'nim' => $row['nim'],
+            'nama' => $row['nama'],
+            'peran' => $row['peran'],
+            'nama_kelompok' => $row['nama_kelompok'],
+            'judul_kegiatan' => $row['judul_kegiatan'],
+            'dosen' => $row['dosen_nama'],
+            'sudah_dinilai' => $row['sudah_dinilai'],
+            'nilai_akhir' => $row['nilai_akhir'],
+            'komponen' => [
+                'proposal_kegiatan' => $p['proposal_kegiatan'] ?? null,
+                'asistensi' => $p['asistensi'] ?? null,
+                'peer_review' => $p['peer_review'] ?? null,
+                'laporan_akhir' => $p['laporan_akhir'] ?? null,
+                'presentasi_akhir' => $p['presentasi_akhir'] ?? null,
+                'pembimbing_lapangan' => $p['pembimbing_lapangan'] ?? null,
+            ],
+            'tanggal_penilaian' => $p['tanggal_penilaian'] ?? null,
+        ];
+    }
+
     public function edit(string $id)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
         //
@@ -858,7 +1004,6 @@ class NilaiAkhirController extends Controller
     public function destroy(string $id)
     {
         try {
-            // Delete penilaian records for specific dosen_id
             $deleted = DB::connection('project_akhir')
                 ->table('penilaian')
                 ->where('dosen_id', $id)

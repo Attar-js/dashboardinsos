@@ -5,12 +5,23 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Luaran;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use OpenApi\Attributes as OA;
 
 class LuaranController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+    #[OA\Get(
+        path: '/api/luaran/list',
+        tags: ['Luaran'],
+        summary: 'Daftar semua luaran',
+        description: 'Mengambil seluruh data luaran (artikel, video aftermovie, link) beserta statusnya.',
+        responses: [
+            new OA\Response(response: 200, description: 'Daftar luaran berhasil diambil'),
+        ]
+    )]
     public function index()
     {
         $luaran = Luaran::orderBy('created_at', 'desc')->get();
@@ -33,7 +44,7 @@ class LuaranController extends Controller
         });
         
         // Check if request wants JSON (API call)
-        if (request()->expectsJson()) {
+        if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json($transformedData);
         }
         
@@ -99,10 +110,38 @@ class LuaranController extends Controller
     /**
      * Display the specified resource.
      */
+    #[OA\Get(
+        path: '/api/luaran/{id}',
+        tags: ['Luaran'],
+        summary: 'Detail luaran',
+        description: 'Mengambil detail satu luaran berdasarkan ID.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID luaran', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Detail luaran berhasil diambil'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+        ]
+    )]
     public function show(string $id)
     {
-        $luaran = Luaran::findOrFail($id);
-        return view('special-pages.luaran', compact('luaran'));
+        try {
+            $luaran = Luaran::findOrFail($id);
+
+            if (request()->is('api/*') || request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $luaran
+                ]);
+            }
+
+            return view('special-pages.luaran', compact('luaran'));
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan'
+            ], 404);
+        }
     }
 
     /**
@@ -194,12 +233,48 @@ class LuaranController extends Controller
     /**
      * Verifikasi luaran
      */
+    #[OA\Put(
+        path: '/api/luaran/{id}/status',
+        tags: ['Luaran'],
+        summary: 'Verifikasi / ubah status luaran',
+        description: 'Mengubah status verifikasi luaran (pending, approved, rejected) beserta catatan opsional.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID luaran', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['status'],
+                properties: [
+                    new OA\Property(property: 'status', type: 'string', enum: ['pending', 'approved', 'rejected'], example: 'approved'),
+                    new OA\Property(property: 'catatan', type: 'string', maxLength: 1000, nullable: true, example: 'Luaran sudah sesuai'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Status luaran berhasil diperbarui'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+        ]
+    )]
     public function verifikasi(Request $request, string $id)
     {
-        $request->validate([
+        $isApi = $request->is('api/*') || $request->expectsJson();
+
+        $validator = Validator::make($request->all(), [
             'status' => 'required|in:pending,approved,rejected',
             'catatan' => 'nullable|string|max:1000',
         ]);
+
+        if ($validator->fails()) {
+            if ($isApi) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
 
         try {
             $luaran = Luaran::findOrFail($id);
@@ -209,8 +284,22 @@ class LuaranController extends Controller
             ]);
 
             $statusText = $request->status == 'approved' ? 'disetujui' : ($request->status == 'rejected' ? 'ditolak' : 'pending');
+
+            if ($isApi) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Luaran berhasil diverifikasi dengan status: {$statusText}",
+                    'data' => $luaran
+                ]);
+            }
             return redirect()->back()->with('success', "Luaran berhasil diverifikasi dengan status: {$statusText}");
         } catch (\Exception $e) {
+            if ($isApi) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Terjadi kesalahan saat verifikasi luaran: ' . $e->getMessage()
+                ], 500);
+            }
             return redirect()->back()->with('error', 'Terjadi kesalahan saat verifikasi luaran: ' . $e->getMessage());
         }
     }
@@ -218,6 +307,33 @@ class LuaranController extends Controller
     /**
      * Menyimpan data luaran dari external (project-akhir)
      */
+    #[OA\Post(
+        path: '/api/luaran/store-from-external',
+        tags: ['Luaran'],
+        summary: 'Menerima luaran dari project-akhir',
+        description: 'Menyimpan luaran berupa file artikel (PDF/DOC/DOCX), link video aftermovie, dan link artikel. Endpoint ini juga tersedia sebagai alias di /api/luaran/store.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\MediaType(
+                mediaType: 'multipart/form-data',
+                schema: new OA\Schema(
+                    required: ['judul_kegiatan', 'video_aftermovie', 'artikel_link', 'artikel_file', 'user_nim'],
+                    properties: [
+                        new OA\Property(property: 'judul_kegiatan', type: 'string', maxLength: 255, example: 'KKN Tematik Desa Sukamaju'),
+                        new OA\Property(property: 'video_aftermovie', type: 'string', format: 'uri', example: 'https://youtube.com/watch?v=xxxx'),
+                        new OA\Property(property: 'artikel_link', type: 'string', format: 'uri', example: 'https://media.com/artikel-kkn'),
+                        new OA\Property(property: 'artikel_file', type: 'string', format: 'binary', description: 'File artikel PDF/DOC/DOCX (maks 10MB)'),
+                        new OA\Property(property: 'user_nim', type: 'string', maxLength: 20, example: '2010001'),
+                    ]
+                )
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Luaran berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function storeFromExternal(Request $request)
     {
         $request->validate([

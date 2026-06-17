@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // LONGBLOB adalah tipe khusus MySQL; pada driver lain (mis. SQLite saat testing) dilewati.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Change file_content column to LONGBLOB for binary data storage
         DB::statement('ALTER TABLE nilai_cpmk MODIFY COLUMN file_content LONGBLOB');
     }
@@ -21,6 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Change back to LONGTEXT
         DB::statement('ALTER TABLE nilai_cpmk MODIFY COLUMN file_content LONGTEXT');
     }

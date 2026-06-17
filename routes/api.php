@@ -18,6 +18,12 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// Nilai Akhir API Routes
+Route::middleware('apikey')->prefix('nilai-akhir')->group(function () {
+    Route::get('/', [App\Http\Controllers\NilaiAkhirController::class, 'apiIndex']);
+    Route::get('/{nim}', [App\Http\Controllers\NilaiAkhirController::class, 'apiShow']);
+});
+
 // KKN Pendaftar API Routes
 Route::prefix('kkn')->group(function () {
     Route::get('/pendaftar', [App\Http\Controllers\Api\KknApiController::class, 'index']);
@@ -48,7 +54,7 @@ Route::prefix('luaran')->group(function () {
     Route::post('/store-from-external', [App\Http\Controllers\LuaranController::class, 'storeFromExternal']);
     Route::get('/list', [App\Http\Controllers\LuaranController::class, 'index']);
     Route::get('/{id}', [App\Http\Controllers\LuaranController::class, 'show']);
-    Route::put('/{id}/status', [App\Http\Controllers\LuaranController::class, 'status']);
+    Route::put('/{id}/status', [App\Http\Controllers\LuaranController::class, 'verifikasi']);
     
     // Test route untuk debugging
     Route::get('/test', function() {

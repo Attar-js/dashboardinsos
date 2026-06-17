@@ -7,12 +7,22 @@ use App\Models\Proposal;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\DashboardHelper;
+use OpenApi\Attributes as OA;
 
 class ProposalController extends Controller
 {
     /**
      * Menampilkan halaman proposal
      */
+    #[OA\Get(
+        path: '/api/proposal/list',
+        tags: ['Proposal'],
+        summary: 'Daftar semua proposal',
+        description: 'Mengambil seluruh data proposal beserta status verifikasinya.',
+        responses: [
+            new OA\Response(response: 200, description: 'Daftar proposal berhasil diambil'),
+        ]
+    )]
     public function index()
     {
         $proposals = Proposal::orderBy('created_at', 'desc')->get();
@@ -33,7 +43,7 @@ class ProposalController extends Controller
         });
         
         // Check if request wants JSON (API call)
-        if (request()->expectsJson()) {
+        if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json($transformedData);
         }
         
@@ -121,10 +131,38 @@ class ProposalController extends Controller
     /**
      * Menampilkan detail proposal
      */
+    #[OA\Get(
+        path: '/api/proposal/{id}',
+        tags: ['Proposal'],
+        summary: 'Detail proposal',
+        description: 'Mengambil detail satu proposal berdasarkan ID.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID proposal', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Detail proposal berhasil diambil'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+        ]
+    )]
     public function show($id)
     {
-        $proposal = Proposal::findOrFail($id);
-        return view('special-pages.proposal', compact('proposal'));
+        try {
+            $proposal = Proposal::findOrFail($id);
+
+            if (request()->is('api/*') || request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $proposal
+                ]);
+            }
+
+            return view('special-pages.proposal', compact('proposal'));
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan'
+            ], 404);
+        }
     }
 
     /**
@@ -229,6 +267,31 @@ class ProposalController extends Controller
     /**
      * Menyimpan data proposal dari external (project-akhir)
      */
+    #[OA\Post(
+        path: '/api/proposal/store-from-external',
+        tags: ['Proposal'],
+        summary: 'Menerima proposal dari project-akhir',
+        description: 'Menyimpan proposal beserta file (dikirim sebagai string base64). Endpoint ini juga tersedia sebagai alias di /api/proposal/store.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['judul_kegiatan', 'user_nim', 'file_content', 'file_name', 'file_mime_type', 'file_size'],
+                properties: [
+                    new OA\Property(property: 'judul_kegiatan', type: 'string', maxLength: 255, example: 'KKN Tematik Desa Sukamaju'),
+                    new OA\Property(property: 'user_nim', type: 'string', maxLength: 20, example: '2010001'),
+                    new OA\Property(property: 'file_content', type: 'string', format: 'byte', description: 'Isi file PDF dalam base64'),
+                    new OA\Property(property: 'file_name', type: 'string', example: 'proposal.pdf'),
+                    new OA\Property(property: 'file_mime_type', type: 'string', example: 'application/pdf'),
+                    new OA\Property(property: 'file_size', type: 'integer', example: 204800),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Proposal berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function storeFromExternal(Request $request)
     {
         $validator = Validator::make($request->all(), [

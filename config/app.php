@@ -15,6 +15,8 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'mitra_api_key' => env('MITRA_API_KEY'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

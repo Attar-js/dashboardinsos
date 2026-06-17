@@ -7,12 +7,22 @@ use App\Models\LaporanAkhir;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Helpers\DashboardHelper;
+use OpenApi\Attributes as OA;
 
 class LaporanAkhirController extends Controller
 {
     /**
      * Menampilkan halaman laporan akhir
      */
+    #[OA\Get(
+        path: '/api/laporan-akhir/list',
+        tags: ['Laporan Akhir'],
+        summary: 'Daftar semua laporan akhir',
+        description: 'Mengambil seluruh data laporan akhir beserta status verifikasinya.',
+        responses: [
+            new OA\Response(response: 200, description: 'Daftar laporan akhir berhasil diambil'),
+        ]
+    )]
     public function index()
     {
         $laporanAkhir = LaporanAkhir::orderBy('created_at', 'desc')->get();
@@ -33,7 +43,7 @@ class LaporanAkhirController extends Controller
         });
         
         // Check if request wants JSON (API call)
-        if (request()->expectsJson()) {
+        if (request()->expectsJson() || request()->is('api/*')) {
             return response()->json($transformedData);
         }
         
@@ -121,10 +131,38 @@ class LaporanAkhirController extends Controller
     /**
      * Menampilkan detail laporan akhir
      */
+    #[OA\Get(
+        path: '/api/laporan-akhir/{id}',
+        tags: ['Laporan Akhir'],
+        summary: 'Detail laporan akhir',
+        description: 'Mengambil detail satu laporan akhir berdasarkan ID.',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'ID laporan akhir', schema: new OA\Schema(type: 'integer'), example: 1),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Detail laporan akhir berhasil diambil'),
+            new OA\Response(response: 404, description: 'Data tidak ditemukan'),
+        ]
+    )]
     public function show($id)
     {
-        $laporanAkhir = LaporanAkhir::findOrFail($id);
-        return view('special-pages.laporan-akhir', compact('laporanAkhir'));
+        try {
+            $laporanAkhir = LaporanAkhir::findOrFail($id);
+
+            if (request()->is('api/*') || request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $laporanAkhir
+                ]);
+            }
+
+            return view('special-pages.laporan-akhir', compact('laporanAkhir'));
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan'
+            ], 404);
+        }
     }
 
     /**
@@ -229,6 +267,31 @@ class LaporanAkhirController extends Controller
     /**
      * Menyimpan data laporan akhir dari external (project-akhir)
      */
+    #[OA\Post(
+        path: '/api/laporan-akhir/store-from-external',
+        tags: ['Laporan Akhir'],
+        summary: 'Menerima laporan akhir dari project-akhir',
+        description: 'Menyimpan laporan akhir beserta file (dikirim sebagai string base64). Endpoint ini juga tersedia sebagai alias di /api/laporan-akhir/store.',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['judul_kegiatan', 'user_nim', 'file_content', 'file_name', 'file_mime_type', 'file_size'],
+                properties: [
+                    new OA\Property(property: 'judul_kegiatan', type: 'string', maxLength: 255, example: 'KKN Tematik Desa Sukamaju'),
+                    new OA\Property(property: 'user_nim', type: 'string', maxLength: 20, example: '2010001'),
+                    new OA\Property(property: 'file_content', type: 'string', format: 'byte', description: 'Isi file PDF dalam base64'),
+                    new OA\Property(property: 'file_name', type: 'string', example: 'laporan-akhir.pdf'),
+                    new OA\Property(property: 'file_mime_type', type: 'string', example: 'application/pdf'),
+                    new OA\Property(property: 'file_size', type: 'integer', example: 204800),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Laporan akhir berhasil disimpan'),
+            new OA\Response(response: 422, description: 'Validasi gagal'),
+            new OA\Response(response: 500, description: 'Terjadi kesalahan server'),
+        ]
+    )]
     public function storeFromExternal(Request $request)
     {
         $validator = Validator::make($request->all(), [
