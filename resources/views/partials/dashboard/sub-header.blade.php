@@ -23,6 +23,13 @@
                                 <span>/</span>
                                 <span class="page-header-breadcrumb-current">Profil Saya</span>
                             </nav>
+                        @elseif(request()->routeIs('dashboard'))
+                            <p class="db-welcome-date mb-2">{{ \App\Http\Controllers\DashboardController::welcomeDateLabel() }}</p>
+                            <h1 class="db-welcome-title mb-2">
+                                Selamat datang kembali,
+                                <span class="db-welcome-name">{{ \App\Http\Controllers\DashboardController::displayUserName() }}</span>.
+                            </h1>
+                            <p class="vp-page-subtitle mb-0">Inovasi Sosial - Institut Teknologi Kalimantan</p>
                         @else
                             <h1>Tim Penciri</h1>
                             <p>Inovasi Sosial - Institut Teknologi Kalimantan</p>
