@@ -16,65 +16,33 @@ return new class extends Migration
             return;
         }
 
-        Schema::table('groups', function (Blueprint $table) {
-            if (!Schema::hasColumn('groups', 'nama_kelompok') && Schema::hasColumn('groups', 'title')) {
-                $table->string('nama_kelompok')->nullable()->after('id');
+        $columns = [
+            'nama_kelompok' => fn (Blueprint $table) => $table->string('nama_kelompok')->nullable(),
+            'judul_kegiatan' => fn (Blueprint $table) => $table->text('judul_kegiatan')->nullable(),
+            'lokasi_kkn' => fn (Blueprint $table) => $table->string('lokasi_kkn')->nullable(),
+            'deskripsi_kegiatan' => fn (Blueprint $table) => $table->text('deskripsi_kegiatan')->nullable(),
+            'nama_mitra' => fn (Blueprint $table) => $table->string('nama_mitra')->nullable(),
+            'lokasi_mitra' => fn (Blueprint $table) => $table->string('lokasi_mitra')->nullable(),
+            'dosen_id' => fn (Blueprint $table) => $table->unsignedBigInteger('dosen_id')->nullable(),
+            'leader_id' => fn (Blueprint $table) => $table->unsignedBigInteger('leader_id')->nullable(),
+            'assigned_by' => fn (Blueprint $table) => $table->unsignedBigInteger('assigned_by')->nullable(),
+            'assigned_at' => fn (Blueprint $table) => $table->timestamp('assigned_at')->nullable(),
+            'supervisor_approved_at' => fn (Blueprint $table) => $table->timestamp('supervisor_approved_at')->nullable(),
+            'assignment_note' => fn (Blueprint $table) => $table->text('assignment_note')->nullable(),
+            'status' => fn (Blueprint $table) => $table->string('status')->default('pending'),
+            'catatan' => fn (Blueprint $table) => $table->text('catatan')->nullable(),
+            'proposal_review_status' => fn (Blueprint $table) => $table->string('proposal_review_status', 20)->default('pending'),
+            'proposal_review_note' => fn (Blueprint $table) => $table->text('proposal_review_note')->nullable(),
+            'proposal_reviewed_at' => fn (Blueprint $table) => $table->timestamp('proposal_reviewed_at')->nullable(),
+            'proposal_reviewed_by' => fn (Blueprint $table) => $table->unsignedBigInteger('proposal_reviewed_by')->nullable(),
+            'progress_verifikasi' => fn (Blueprint $table) => $table->integer('progress_verifikasi')->default(0),
+        ];
+
+        foreach ($columns as $name => $definition) {
+            if (!Schema::hasColumn('groups', $name)) {
+                Schema::table('groups', $definition);
             }
-            if (!Schema::hasColumn('groups', 'judul_kegiatan')) {
-                $table->text('judul_kegiatan')->nullable()->after('nama_kelompok');
-            }
-            if (!Schema::hasColumn('groups', 'lokasi_kkn')) {
-                $table->string('lokasi_kkn')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'deskripsi_kegiatan')) {
-                $table->text('deskripsi_kegiatan')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'nama_mitra')) {
-                $table->string('nama_mitra')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'lokasi_mitra')) {
-                $table->string('lokasi_mitra')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'dosen_id')) {
-                $table->unsignedBigInteger('dosen_id')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'leader_id')) {
-                $table->unsignedBigInteger('leader_id')->nullable()->after('dosen_id');
-            }
-            if (!Schema::hasColumn('groups', 'assigned_by')) {
-                $table->unsignedBigInteger('assigned_by')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'assigned_at')) {
-                $table->timestamp('assigned_at')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'supervisor_approved_at')) {
-                $table->timestamp('supervisor_approved_at')->nullable()->after('assigned_at');
-            }
-            if (!Schema::hasColumn('groups', 'assignment_note')) {
-                $table->text('assignment_note')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'status')) {
-                $table->string('status')->default('pending');
-            }
-            if (!Schema::hasColumn('groups', 'catatan')) {
-                $table->text('catatan')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'proposal_review_status')) {
-                $table->string('proposal_review_status', 20)->default('pending')->after('catatan');
-            }
-            if (!Schema::hasColumn('groups', 'proposal_review_note')) {
-                $table->text('proposal_review_note')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'proposal_reviewed_at')) {
-                $table->timestamp('proposal_reviewed_at')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'proposal_reviewed_by')) {
-                $table->unsignedBigInteger('proposal_reviewed_by')->nullable();
-            }
-            if (!Schema::hasColumn('groups', 'progress_verifikasi')) {
-                $table->integer('progress_verifikasi')->default(0);
-            }
-        });
+        }
     }
 
     public function down(): void
