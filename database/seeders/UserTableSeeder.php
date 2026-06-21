@@ -17,6 +17,7 @@ class UserTableSeeder extends Seeder
     {
         $users = [
             [
+                'name' => 'System Admin',
                 'first_name' => 'System',
                 'last_name' => 'Admin',
                 'username' => 'systemadmin',
@@ -25,9 +26,11 @@ class UserTableSeeder extends Seeder
                 'phone_number' => '+12398190255',
                 'email_verified_at' => now(),
                 'user_type' => 'admin',
+                'role' => 'admin',
                 'status' => 'active',
             ],
             [
+                'name' => 'Demo Admin',
                 'first_name' => 'Demo',
                 'last_name' => 'Admin',
                 'username' => 'demoadmin',
@@ -36,8 +39,11 @@ class UserTableSeeder extends Seeder
                 'phone_number' => '+12398190255',
                 'email_verified_at' => now(),
                 'user_type' => 'demo_admin',
+                'role' => 'admin',
+                'status' => 'active',
             ],
             [
+                'name' => 'John User',
                 'first_name' => 'John',
                 'last_name' => 'User',
                 'username' => 'user',
@@ -46,12 +52,34 @@ class UserTableSeeder extends Seeder
                 'phone_number' => '+12398190255',
                 'email_verified_at' => now(),
                 'user_type' => 'user',
-                'status' => 'inactive'
-            ]
+                'role' => 'mahasiswa',
+                'status' => 'inactive',
+            ],
         ];
-        foreach ($users as $key => $value) {
-            $user = User::create($value);
-            $user->assignRole($value['user_type']);
+
+        User::unguard();
+
+        try {
+            $hasRoleColumn = \Illuminate\Support\Facades\Schema::hasColumn('users', 'role');
+
+            foreach ($users as $value) {
+                $roleName = $value['user_type'];
+
+                if (!$hasRoleColumn) {
+                    unset($value['role']);
+                }
+
+                $user = User::updateOrCreate(
+                    ['email' => $value['email']],
+                    $value
+                );
+
+                if (!$user->hasRole($roleName)) {
+                    $user->assignRole($roleName);
+                }
+            }
+        } finally {
+            User::reguard();
         }
     }
 }

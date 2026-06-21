@@ -33,7 +33,23 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect(RouteServiceProvider::HOME);
+        $user = Auth::user();
+
+        if (!$user->isActiveAccount()) {
+            Auth::logout();
+
+            return redirect()
+                ->route('login')
+                ->with('error', 'Akun Anda tidak aktif. Silakan hubungi administrator.');
+        }
+
+        if ($user->isDashboardAdmin()) {
+            return redirect()->route('dashboard');
+        }
+
+        return redirect()
+            ->route('profile.index')
+            ->with('error', 'Akun ini bukan admin dashboard. Silakan gunakan akun admin.');
     }
 
     /**

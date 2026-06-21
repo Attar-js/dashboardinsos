@@ -22,13 +22,15 @@ class AdminMiddleware
             return redirect()->route('login');
         }
 
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
-            return redirect()->back()->with('error', 'Akses ditolak. Hanya admin yang dapat mengakses halaman ini.');
+        // Check if user is admin (redirect ke login, bukan back(), agar tidak loop)
+        if (!Auth::user()->isDashboardAdmin()) {
+            return redirect()
+                ->route('profile.index')
+                ->with('error', 'Akses ditolak. Hanya admin yang dapat mengakses halaman ini.');
         }
 
         // Check if user is active
-        if (Auth::user()->status !== 'active') {
+        if (!Auth::user()->isActiveAccount()) {
             Auth::logout();
             return redirect()->route('login')->with('error', 'Akun Anda tidak aktif. Silakan hubungi administrator.');
         }

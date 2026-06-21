@@ -29,11 +29,21 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
         'user_type',
         'status',
         'email',
+        'email_verified_at',
         'nim',
         'nip',
         'role',
         'password',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if (empty($user->name)) {
+                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+            }
+        });
+    }
 
     /**
      * The attributes that should be hidden for arrays.
@@ -63,5 +73,22 @@ class User extends Authenticatable implements MustVerifyEmail, HasMedia
 
     public function userProfile() {
         return $this->hasOne(UserProfile::class, 'user_id', 'id');
+    }
+
+    /**
+     * Admin dashboard: pakai kolom role jika ada, fallback ke user_type (schema Hope UI).
+     */
+    public function isDashboardAdmin(): bool
+    {
+        if ($this->hasAttribute('role') && $this->role === 'admin') {
+            return true;
+        }
+
+        return in_array($this->user_type, ['admin', 'demo_admin'], true);
+    }
+
+    public function isActiveAccount(): bool
+    {
+        return ($this->status ?? 'active') === 'active';
     }
 }
