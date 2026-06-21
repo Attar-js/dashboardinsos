@@ -555,6 +555,92 @@ body.uikit .btn-download {
   letter-spacing: 0.02em;
 }
 
+.sidebar-brand-itk {
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0.75rem 0.85rem !important;
+}
+
+.sidebar-brand-logo-wrap {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.sidebar-brand-logo {
+  width: 48px;
+  height: auto;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  line-height: 1.2;
+  margin-left: 0.75rem;
+  transition: all 400ms ease;
+}
+
+.sidebar-brand-inovasi,
+.sidebar-brand-sosial {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sidebar-brand-inovasi {
+  color: #2e86de;
+}
+
+.sidebar-brand-sosial {
+  color: #e8940a;
+  letter-spacing: 0.1em;
+}
+
+.sidebar-mini .sidebar-brand-text,
+.sidebar.sidebar-mini .sidebar-brand-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  margin-left: 0;
+}
+
+.page-header-breadcrumb {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.page-header-breadcrumb a {
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+}
+
+.page-header-breadcrumb a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.page-header-breadcrumb span {
+  margin: 0 0.35rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.page-header-breadcrumb-current {
+  color: rgba(255, 255, 255, 0.88);
+}
+
 /* Verifikasi Pendaftar pages */
 .vp-page-banner {
   position: relative;

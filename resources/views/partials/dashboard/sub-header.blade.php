@@ -15,6 +15,14 @@
                         @elseif(request()->routeIs('nilai-akhir*'))
                             <h1>Penilaian Akhir Mahasiswa</h1>
                             <p class="vp-page-subtitle mb-0">Rekap nilai akhir tiap mahasiswa berdasarkan penilaian dosen pembimbing.</p>
+                        @elseif(request()->routeIs('profile.*'))
+                            <h1>Profil Saya</h1>
+                            <p class="vp-page-subtitle mb-2">Inovasi Sosial - Institut Teknologi Kalimantan</p>
+                            <nav class="page-header-breadcrumb" aria-label="Breadcrumb">
+                                <a href="{{ auth()->user()->role === 'admin' ? route('dashboard') : route('special-pages.pendaftar') }}">Beranda</a>
+                                <span>/</span>
+                                <span class="page-header-breadcrumb-current">Profil Saya</span>
+                            </nav>
                         @else
                             <h1>Tim Penciri</h1>
                             <p>Inovasi Sosial - Institut Teknologi Kalimantan</p>

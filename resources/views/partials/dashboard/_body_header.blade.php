@@ -77,17 +77,17 @@
             </li>
             <li><hr class="dropdown-divider"></li>
             <li>
-              <a href="{{ \App\Helpers\DashboardHelper::getLandingUrl() }}" class="dropdown-item" target="_blank" rel="noopener">
-                Buka Landing Page
+              <a href="{{ route('profile.index') }}" class="dropdown-item">
+                <i class="fas fa-user me-2"></i> Profil Saya
               </a>
             </li>
             <li><hr class="dropdown-divider"></li>
             <li><form method="POST" action="{{route('logout')}}">
               @csrf
-              <a href="javascript:void(0)" class="dropdown-item"
+              <a href="javascript:void(0)" class="dropdown-item text-danger"
                 onclick="event.preventDefault();
               this.closest('form').submit();">
-                  {{ __('Log out') }}
+                  <i class="fas fa-sign-out-alt me-2"></i> Keluar
               </a>
               </form>
             </li>

@@ -6,7 +6,7 @@
 <link rel="apple-touch-icon" href="{{ asset('images/logo/logo.png') }}">
 <link rel="stylesheet" href="{{asset('css/libs.min.css')}}">
 <link rel="stylesheet" href="{{asset('css/dashboard.css?v=1.1.0')}}">
-<link rel="stylesheet" href="{{asset('css/custom.css?v=1.5.0')}}">
+<link rel="stylesheet" href="{{asset('css/custom.css?v=1.5.2')}}">
 <link rel="stylesheet" href="{{asset('css/dark.css?v=1.1.0')}}">
 <link rel="stylesheet" href="{{asset('css/rtl.css?v=1.1.0')}}">
 <link rel="stylesheet" href="{{asset('css/customizer.css?v=1.1.0')}}">

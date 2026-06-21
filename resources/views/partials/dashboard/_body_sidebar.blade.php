@@ -1,8 +1,13 @@
 <aside class="sidebar sidebar-default navs-rounded-all">
     <div class="sidebar-header d-flex align-items-center justify-content-start">
-        <a href="{{route('dashboard')}}" class="navbar-brand">
-            <img src="{{asset('images/logo/logo.png')}}" alt="Inovasi Sosial Logo" width="30" height="30" class="me-2">
-            <h4 class="logo-title text-uppercase">Inovasi Sosial</h4>
+        <a href="{{ auth()->user()->role === 'admin' ? route('dashboard') : route('special-pages.pendaftar') }}" class="navbar-brand sidebar-brand-itk">
+            <div class="sidebar-brand-logo-wrap">
+                <img src="{{ asset('images/logo/itk-logo-sidebar.png') }}" alt="Institut Teknologi Kalimantan" class="sidebar-brand-logo">
+            </div>
+            <div class="sidebar-brand-text">
+                <span class="sidebar-brand-inovasi">Inovasi</span>
+                <span class="sidebar-brand-sosial">Sosial</span>
+            </div>
         </a>
         <div class="sidebar-toggle" data-toggle="sidebar" data-active="true">
             <i class="icon">

@@ -9,6 +9,7 @@
     <title>Inovasi Sosial - Institut Teknologi Kalimantan</title>
 
     @include('partials.dashboard._head')
+    @stack('styles')
 </head>
 <body class="">
     @yield('content')
