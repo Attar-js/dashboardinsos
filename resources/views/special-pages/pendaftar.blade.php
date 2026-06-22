@@ -682,12 +682,10 @@ function openPdfViewer(pdfUrl, fileName) {
    const loadingDiv = document.getElementById('pdfLoading');
    const contentDiv = document.getElementById('pdfContent');
    
-   // Reset modal state
    loadingDiv.classList.remove('d-none');
    contentDiv.classList.add('d-none');
    iframe.src = '';
    
-   // Set file name and download link
    fileNameSpan.textContent = fileName;
    downloadLink.href = pdfUrl;
    
@@ -705,17 +703,14 @@ function openPdfViewer(pdfUrl, fileName) {
       return;
    }
    
-   // Test if file exists first
    fetch(pdfUrl, { method: 'HEAD' })
       .then(response => {
          if (response.ok) {
             console.log('File exists, loading PDF...');
             
-            // Set iframe src with parameters for better PDF display
             const iframeSrc = pdfUrl + '#toolbar=1&navpanes=1&scrollbar=1&view=FitH';
             iframe.src = iframeSrc;
             
-            // Hide loading and show content when iframe loads
             iframe.onload = function() {
                console.log('Iframe loaded successfully');
                setTimeout(() => {
@@ -724,7 +719,6 @@ function openPdfViewer(pdfUrl, fileName) {
                }, 1000);
             };
             
-            // Handle iframe load error
             iframe.onerror = function() {
                console.error('Iframe load error');
                loadingDiv.innerHTML = `
